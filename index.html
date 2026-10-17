@@ -71,9 +71,19 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
 @keyframes hpop{0%{transform:scale(1)}30%{transform:scale(1.5) rotate(-12deg)}100%{transform:scale(.8)}}
 .progress{margin:6px 16px 0;height:10px;background:#ffffff99;border-radius:99px;overflow:hidden}
 #bar{height:100%;width:0;background:linear-gradient(90deg,#ffb36b,#ff6c9d);border-radius:99px;transition:width .3s}
-.cnt{text-align:center;font-weight:800;font-size:13px;opacity:.6;margin-top:3px}
+.subbar{display:flex;align-items:center;gap:8px;margin:4px 12px 0;min-height:40px}
+.cnt{flex:1;text-align:left;font-weight:800;font-size:13px;opacity:.6;padding-left:4px}
+#zoomCtl{display:flex;align-items:center;gap:6px;background:#ffffffb3;border-radius:999px;padding:3px}
+.zb{width:38px;height:38px;border-radius:50%;background:#fff;box-shadow:0 2px 0 #0000001a;display:flex;align-items:center;justify-content:center;padding:0}
+.zb:active{transform:translateY(2px)}
+.zb[disabled]{opacity:.4}
+.zb svg{width:22px;height:22px}
+#zoomLbl{min-width:44px;text-align:center;font-weight:900;font-size:14px;font-variant-numeric:tabular-nums}
+#stage.zoomed #cv{cursor:grab}
+#stage.dragging #cv{cursor:grabbing}
 #stage{flex:1;position:relative;min-height:0;margin:4px 6px}
-#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none}
+#stage{overflow:hidden;border-radius:18px}
+#cv{position:absolute;inset:0;width:100%;height:100%;touch-action:none;cursor:pointer}
 #toast{position:absolute;left:50%;top:10px;transform:translateX(-50%) scale(.8);background:#3a2e4d;color:#fff;font-weight:800;padding:8px 16px;border-radius:999px;
  opacity:0;transition:all .2s;pointer-events:none;white-space:nowrap}
 #toast.show{opacity:1;transform:translateX(-50%) scale(1)}
@@ -109,7 +119,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
       <button class="btn blue" id="endlessBtn"><svg viewBox="0 0 24 24"><path d="M7 8c-2.3 0-4 1.8-4 4s1.7 4 4 4c3.5 0 6.5-8 10-8 2.3 0 4 1.8 4 4s-1.7 4-4 4c-3.5 0-6.5-8-10-8z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>Endless mode</button>
       <button class="btn" id="muteBtn2"></button>
     </div>
-    <div class="howto"><b>How to play:</b> every arrow slides in the direction its head points. Tap an arrow — if nothing is in its way it zooms off the board. If another arrow blocks it, it bumps back and you lose a <b>heart</b> (3 per level). Clear every arrow to reveal the animal! Stuck? Tap <b>Hint</b>.</div>
+    <div class="howto"><b>How to play:</b> every arrow slides in the direction its head points. Tap an arrow — if nothing is in its way it zooms off the board. If another arrow blocks it, it bumps back and you lose a <b>heart</b> (3 per level). Clear every arrow to reveal the animal! Stuck? Tap <b>Hint</b>. Big animal? Pinch or use <b>+ / −</b> to zoom, then drag to look around.</div>
   </section>
 
   <section id="game" class="screen hidden">
@@ -120,7 +130,15 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
       <button class="ib" id="muteBtn" aria-label="Sound"></button>
     </div>
     <div class="progress"><div id="bar"></div></div>
-    <div class="cnt" id="cnt"></div>
+    <div class="subbar">
+      <div class="cnt" id="cnt"></div>
+      <div id="zoomCtl" role="group" aria-label="Zoom">
+        <button class="zb" id="zoomOut" aria-label="Zoom out" title="Zoom out (-)"><svg viewBox="0 0 24 24"><path d="M6 12h12" stroke="#3a2e4d" stroke-width="3" stroke-linecap="round"/></svg></button>
+        <div id="zoomLbl">1×</div>
+        <button class="zb" id="zoomIn" aria-label="Zoom in" title="Zoom in (+)"><svg viewBox="0 0 24 24"><path d="M6 12h12M12 6v12" stroke="#3a2e4d" stroke-width="3" stroke-linecap="round"/></svg></button>
+        <button class="zb" id="zoomFit" aria-label="Fit board" title="Fit whole board (0)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#3a2e4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      </div>
+    </div>
     <div id="stage"><canvas id="cv"></canvas><div id="toast"></div></div>
     <div class="bottombar">
       <button class="btn" id="undoBtn"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4.5 12H15a5 5 0 010 10h-2" fill="none" stroke="#3a2e4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,-3)"/></svg>Undo</button>
@@ -535,7 +553,7 @@ function startLevel(i,endlessSeed){
   $('animalName').textContent=L.animal.name;
   stage.style.background='';
   document.body.style.setProperty('--bgc',L.animal.bg);
-  resize();updateHud();
+  resetView();resize();updateHud();
 }
 function updateHud(){
   if(!G)return;
@@ -588,7 +606,7 @@ function hint(){
   // prefer an arrow that unblocks others
   let best=f[0],bs=-1;
   for(const a of f){let s=0;for(const o of G.arrows){if(o.removed||o===a)continue;const b=blocker(o);if(b&&b.id===a.id)s++;}if(s>bs){bs=s;best=a;}}
-  G.hint=best.id;G.hintT=performance.now();SFX.hint();return best.id;
+  G.hint=best.id;G.hintT=performance.now();SFX.hint();revealCell(best.cells[best.cells.length-1]);return best.id;
 }
 function vibrate(ms){try{if(navigator.vibrate&&!save.muted)navigator.vibrate(ms);}catch(e){}}
 let toastTO=0;
@@ -596,7 +614,7 @@ function toast(msg){const t=$('toast');t.textContent=msg;t.classList.add('show')
 
 function win(){
   if(!G)return;
-  G.revealT=performance.now(); SFX.win();
+  G.revealT=performance.now(); SFX.win(); zoomAnim(1);
   const stars=G.hearts;
   if(G.endless){save.endless=(save.endless||0)+1;}
   else{save.stars[G.level]=Math.max(save.stars[G.level]||0,stars);save.unlocked=Math.max(save.unlocked,Math.min(ANIMALS.length,G.level+2));}
@@ -622,14 +640,55 @@ function showOverlay(title,sub,stars,btns){
   $('overlay').classList.remove('hidden');
 }
 
-/* ---------------- layout & input ---------------- */
-let VW=0,VH=0,DPR=1,CS=20,OX=0,OY=0; const PAD=0.5;
+/* ---------------- layout, zoom & input ---------------- */
+let VW=0,VH=0,DPR=1,CS=20,OX=0,OY=0,BASECS=20; const PAD=0.5;
+// view: zoom factor z (1 = whole board fits) and the board point (cx,cy, in cell units incl. padding) at the stage centre
+const ZMIN=1,ZMAX=4,ZSTEP=1.5;
+const V={z:1,cx:0,cy:0,anim:null};
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+function resetView(){V.z=1;V.anim=null;if(G){V.cx=(G.W+PAD*2)/2;V.cy=(G.H+PAD*2)/2;}}
+function applyView(){
+  if(!G)return;
+  const bw=G.W+PAD*2,bh=G.H+PAD*2;
+  V.z=clamp(V.z,ZMIN,ZMAX); if(Math.abs(V.z-1)<1e-3)V.z=1;
+  CS=BASECS*V.z; const hw=VW/2/CS,hh=VH/2/CS;
+  V.cx=bw<=hw*2+1e-6?bw/2:clamp(V.cx,hw,bw-hw);
+  V.cy=bh<=hh*2+1e-6?bh/2:clamp(V.cy,hh,bh-hh);
+  OX=VW/2-V.cx*CS; OY=VH/2-V.cy*CS;
+  updateZoomUi();
+}
+function zoomAt(z,sx,sy){ // zoom keeping the board point under screen point (sx,sy) fixed
+  if(!G)return; const wx=(sx-OX)/CS,wy=(sy-OY)/CS; const nz=clamp(z,ZMIN,ZMAX), ncs=BASECS*nz;
+  V.z=nz; V.cx=wx+(VW/2-sx)/ncs; V.cy=wy+(VH/2-sy)/ncs; applyView();
+}
+function panBy(dx,dy){if(!G)return;V.cx-=dx/CS;V.cy-=dy/CS;applyView();}
+function zoomAnim(z,sx,sy){ // smooth zoom for buttons / keys
+  if(!G)return; const target=clamp(z,ZMIN,ZMAX);
+  V.anim={z0:V.z,z1:target,t0:performance.now(),dur:180,sx:sx??VW/2,sy:sy??VH/2}; updateZoomUi(target);
+}
+function stepZoom(k){const cur=V.anim?V.anim.z1:V.z; zoomAnim(k>0?cur*ZSTEP:cur/ZSTEP);}
+function tickView(now){
+  const a=V.anim; if(!a)return; const t=clamp((now-a.t0)/a.dur,0,1), e=1-Math.pow(1-t,3);
+  zoomAt(a.z0+(a.z1-a.z0)*e,a.sx,a.sy); if(t>=1){V.anim=null;zoomAt(a.z1,a.sx,a.sy);}
+}
+function revealCell([x,y]){ // pan so a cell is on screen when zoomed in
+  if(!G||V.z<=1)return; const [px,py]=cellCenter(x,y); const m=CS*1.2;
+  if(px<m||py<m||px>VW-m||py>VH-m){V.cx=x+PAD+0.5;V.cy=y+PAD+0.5;applyView();}
+}
+function updateZoomUi(shown){
+  const z=shown??V.z; const zl=$('zoomLbl'); if(!zl)return;
+  zl.textContent=(Math.round(z*10)/10).toFixed(z<10?1:0).replace(/\.0$/,'')+'×';
+  $('zoomOut').disabled=z<=ZMIN+1e-3; $('zoomFit').disabled=z<=ZMIN+1e-3; $('zoomIn').disabled=z>=ZMAX-1e-3;
+  stage.classList.toggle('zoomed',V.z>1);
+}
 function resize(){
   DPR=Math.min(3,window.devicePixelRatio||1); VW=stage.clientWidth; VH=stage.clientHeight;
   cv.width=Math.round(VW*DPR); cv.height=Math.round(VH*DPR);
   if(!G)return;
   const bw=G.W+PAD*2,bh=G.H+PAD*2;
-  CS=Math.min(VW/bw,VH/bh,68); OX=(VW-CS*bw)/2; OY=(VH-CS*bh)/2;
+  BASECS=Math.min(VW/bw,VH/bh,68);
+  if(!V.cx){V.cx=bw/2;V.cy=bh/2;}
+  applyView();
 }
 window.addEventListener('resize',resize);
 const cellCenter=(x,y)=>[OX+(x+PAD+0.5)*CS,OY+(y+PAD+0.5)*CS];
@@ -640,18 +699,64 @@ function pickArrow(px,py){
     for(const [x,y] of a.cells){const d=(x-fx)**2+(y-fy)**2;if(d<bd){bd=d;best=a.id;}} }
   return best;
 }
+// Pointer handling: a short press that doesn't move is a tap (removes an arrow on release);
+// one finger / mouse drag pans; two fingers pinch-zoom + pan. Drags and pinches never tap.
+const ptrs=new Map(); let tapC=null;
+const local=e=>{const r=cv.getBoundingClientRect();return{x:e.clientX-r.left,y:e.clientY-r.top};};
 cv.addEventListener('pointerdown',e=>{
   e.preventDefault(); initAudio(); if(!G)return;
-  const r=cv.getBoundingClientRect(); const id=pickArrow(e.clientX-r.left,e.clientY-r.top);
-  if(id>=0)tapArrow(id);
+  try{cv.setPointerCapture(e.pointerId);}catch(_){}
+  const p=local(e); ptrs.set(e.pointerId,p); V.anim=null;
+  if(ptrs.size===1) tapC={id:e.pointerId,x0:p.x,y0:p.y,moved:false,slop:e.pointerType==='mouse'?6:10};
+  else { tapC=null; stage.classList.add('dragging'); }
 });
+cv.addEventListener('pointermove',e=>{
+  if(!G||!ptrs.has(e.pointerId))return; e.preventDefault();
+  const old=new Map(ptrs); const p=local(e); ptrs.set(e.pointerId,p);
+  if(ptrs.size>=2){
+    const ids=[...ptrs.keys()].slice(0,2); const a0=old.get(ids[0]),b0=old.get(ids[1]),a1=ptrs.get(ids[0]),b1=ptrs.get(ids[1]);
+    const d0=Math.hypot(a0.x-b0.x,a0.y-b0.y),d1=Math.hypot(a1.x-b1.x,a1.y-b1.y);
+    const m0x=(a0.x+b0.x)/2,m0y=(a0.y+b0.y)/2,m1x=(a1.x+b1.x)/2,m1y=(a1.y+b1.y)/2;
+    if(d0>4&&d1>4) zoomAt(V.z*d1/d0,m1x,m1y);
+    panBy(m1x-m0x,m1y-m0y);
+    return;
+  }
+  if(tapC&&tapC.id===e.pointerId&&!tapC.moved){
+    if(Math.hypot(p.x-tapC.x0,p.y-tapC.y0)<=tapC.slop)return;
+    tapC.moved=true; stage.classList.add('dragging');
+    panBy(p.x-tapC.x0,p.y-tapC.y0); return;
+  }
+  const o=old.get(e.pointerId); panBy(p.x-o.x,p.y-o.y);
+});
+function endPtr(e,cancel){
+  if(!ptrs.has(e.pointerId))return; ptrs.delete(e.pointerId);
+  const t=tapC; if(t&&t.id===e.pointerId)tapC=null;
+  if(!ptrs.size)stage.classList.remove('dragging');
+  if(!cancel&&t&&t.id===e.pointerId&&!t.moved&&!ptrs.size&&G){
+    const id=pickArrow(t.x0,t.y0); if(id>=0)tapArrow(id);
+  }
+}
+cv.addEventListener('pointerup',e=>endPtr(e,false));
+cv.addEventListener('pointercancel',e=>endPtr(e,true));
+cv.addEventListener('lostpointercapture',e=>endPtr(e,true));
+// mouse wheel / trackpad pinch (ctrl+wheel) zoom around the cursor
+cv.addEventListener('wheel',e=>{
+  e.preventDefault(); if(!G)return; V.anim=null;
+  const dy=e.deltaY*(e.deltaMode===1?16:e.deltaMode===2?400:1);
+  const p=local(e); zoomAt(V.z*Math.exp(-dy*(e.ctrlKey?0.012:0.0025)),p.x,p.y);
+},{passive:false});
+// stop iOS Safari page-level pinch zoom from fighting the board zoom
+['gesturestart','gesturechange'].forEach(t=>document.addEventListener(t,e=>e.preventDefault(),{passive:false}));
+$('zoomIn').onclick=()=>{initAudio();SFX.click();stepZoom(1);};
+$('zoomOut').onclick=()=>{initAudio();SFX.click();stepZoom(-1);};
+$('zoomFit').onclick=()=>{initAudio();SFX.click();zoomAnim(1);};
 $('backBtn').onclick=()=>{initAudio();SFX.click();showMenu();};
 $('hintBtn').onclick=()=>{initAudio();if(hint()<0)SFX.click();};
 $('undoBtn').onclick=()=>{initAudio();undo();};
 $('restartBtn').onclick=()=>{initAudio();SFX.click();if(G)G.endless?startLevel(0,G.seed):startLevel(G.level);};
 $('muteBtn').onclick=$('muteBtn2').onclick=()=>{initAudio();setMuted(!save.muted);SFX.click();};
 $('endlessBtn').onclick=()=>{initAudio();SFX.click();startLevel(0,(Math.random()*1e9)|0);};
-document.addEventListener('keydown',e=>{if(!G)return;if(e.key==='h')hint();if(e.key==='z'||e.key==='u')undo();if(e.key==='r')$('restartBtn').click();if(e.key==='Escape')showMenu();});
+document.addEventListener('keydown',e=>{if(!G)return;if(e.key==='h')hint();if(e.key==='z'||e.key==='u')undo();if(e.key==='r')$('restartBtn').click();if(e.key==='Escape')showMenu();if(e.key==='+'||e.key==='=')stepZoom(1);if(e.key==='-'||e.key==='_')stepZoom(-1);if(e.key==='0')zoomAnim(1);});
 
 /* ---------------- particles ---------------- */
 function burst(x,y,color,n,spd){const [cx,cy]=cellCenter(x,y);
@@ -699,6 +804,7 @@ function drawArrow(a,s,alpha,now){
 function frame(now){
   requestAnimationFrame(frame);
   if(!G||$('game').classList.contains('hidden'))return;
+  tickView(now);
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,VW,VH);
   const bw=(G.W+PAD*2)*CS,bh=(G.H+PAD*2)*CS;
   // board
@@ -774,6 +880,10 @@ window.ArrowMaze={
     lengths:G.arrows.map(a=>a.cells.length)}),
   free:()=>freeArrows().map(a=>a.id),
   blocked:()=>G.arrows.filter(a=>!a.removed&&!a.anim&&blocker(a)).map(a=>({id:a.id,by:blocker(a).id})),
+  view:()=>({z:V.z,cs:CS,baseCS:BASECS,ox:OX,oy:OY,cx:V.cx,cy:V.cy,animating:!!V.anim,label:$('zoomLbl').textContent}),
+  zoomTo:(z)=>{V.anim=null;zoomAt(z,VW/2,VH/2);},
+  cellAt:(clientX,clientY)=>{const r=cv.getBoundingClientRect();return[(clientX-r.left-OX)/CS-PAD-0.5,(clientY-r.top-OY)/CS-PAD-0.5];},
+  visible:(id)=>{const a=G.arrows[id];const[x,y]=a.cells[a.cells.length-1];const c=cellCenter(x,y);const m=CS*0.5;return c[0]>m&&c[1]>m&&c[0]<VW-m&&c[1]<VH-m;},
   tap:(id)=>tapArrow(id), hint:()=>hint(), undo:()=>undo(),
   screenPos:(id)=>{const a=G.arrows[id];const[x,y]=a.cells[a.cells.length-1];const r=cv.getBoundingClientRect();const c=cellCenter(x,y);return{x:r.left+c[0],y:r.top+c[1]};},
   async solve(delay=60){ // greedy auto-play: tap any free arrow until clear
