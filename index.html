@@ -4,6 +4,8 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fe3c8">
+<meta http-equiv="Cache-Control" content="no-cache">
+<meta name="app-build" content="21">
 <title>Animal Arrows · Arrow Maze Puzzle</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23ff6c9d%22/%3E%3Cpath d=%22M7 16h14M15 9l7 7-7 7%22 stroke=%22%23fff%22 stroke-width=%224%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <style>
@@ -56,6 +58,9 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
 .mbtns{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
 .howto{background:var(--card);border-radius:18px;padding:12px 16px;margin-top:16px;font-size:14px;font-weight:600;line-height:1.45}
 .howto b{color:#ff6c9d}
+.ver{text-align:center;font-size:11px;font-weight:800;opacity:.45;margin-top:12px;letter-spacing:.5px}
+#gver{position:absolute;right:8px;bottom:4px;font-size:10px;font-weight:800;opacity:.35;pointer-events:none;z-index:1}
+#updBar{position:fixed;left:50%;top:calc(8px + env(safe-area-inset-top));transform:translateX(-50%);z-index:20;background:#3a2e4d;color:#fff;font-weight:800;font-size:14px;padding:10px 16px;border-radius:999px;box-shadow:0 6px 18px #0004}
 /* game */
 .topbar{display:flex;align-items:center;gap:8px;padding:10px 10px 4px}
 .ib{width:48px;height:48px;border-radius:16px;background:#fff;box-shadow:0 3px 0 #0000001a;display:flex;align-items:center;justify-content:center;flex:0 0 auto}
@@ -120,6 +125,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
       <button class="btn" id="muteBtn2"></button>
     </div>
     <div class="howto"><b>How to play:</b> every arrow slides in the direction its head points. Tap an arrow — if nothing is in its way it zooms off the board. If another arrow blocks it, it bumps back and you lose a <b>heart</b> (3 per level). Clear every arrow to reveal the animal! Stuck? Tap <b>Hint</b>. Big animal? Pinch or use <b>+ / −</b> to zoom, then drag to look around.</div>
+    <div class="ver" id="verTag"></div>
   </section>
 
   <section id="game" class="screen hidden">
@@ -139,7 +145,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
         <button class="zb" id="zoomFit" aria-label="Fit board" title="Fit whole board (0)"><svg viewBox="0 0 24 24"><path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5" fill="none" stroke="#3a2e4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
       </div>
     </div>
-    <div id="stage"><canvas id="cv"></canvas><div id="toast"></div></div>
+    <div id="stage"><canvas id="cv"></canvas><div id="toast"></div><div id="gver"></div></div>
     <div class="bottombar">
       <button class="btn" id="undoBtn"><svg viewBox="0 0 24 24"><path d="M9 7L4 12l5 5M4.5 12H15a5 5 0 010 10h-2" fill="none" stroke="#3a2e4d" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" transform="translate(0,-3)"/></svg>Undo</button>
       <button class="btn pri" id="hintBtn"><svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-4 12.7V18h8v-3.3A7 7 0 0012 2z" fill="#fff6a8" stroke="#fff" stroke-width="1.5"/><rect x="8.5" y="19.5" width="7" height="2.5" rx="1.2" fill="#fff"/></svg>Hint</button>
@@ -147,6 +153,7 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
     </div>
   </section>
 
+  <button id="updBar" class="hidden">New version available · tap to update</button>
   <div id="overlay" class="hidden"><div class="card">
     <h2 id="ovTitle">Hooray!</h2>
     <div id="ovSub"></div>
@@ -554,6 +561,7 @@ function startLevel(i,endlessSeed){
   stage.style.background='';
   document.body.style.setProperty('--bgc',L.animal.bg);
   resetView();resize();updateHud();
+  if(!save.zoomTip&&L.mask.cells.length>=60){save.zoomTip=1;persist();setTimeout(()=>toast('Tip: pinch or tap + to zoom'),900);}
 }
 function updateHud(){
   if(!G)return;
@@ -890,6 +898,28 @@ window.ArrowMaze={
     let guard=0; while(G&&!G.done&&guard++<2000){const f=freeArrows();if(!f.length){if(G.arrows.some(a=>a.anim)){await sleep(30);continue;}return false;}tapArrow(f[0].id);await sleep(delay);} return !!(G&&G.done);
   }
 };
+/* ---------------- version & update check ---------------- */
+// GitHub Pages serves with max-age=600 and phones often keep an old tab alive, so check for a newer build.
+const BUILD=21, VERSION='v2.1 zoom';
+$('verTag').textContent='Animal Arrows '+VERSION; $('gver').textContent=VERSION;
+function freshUrl(b){return location.pathname+'?v='+b+location.hash;}
+async function checkUpdate(auto){
+  if(!/^https?:/.test(location.protocol))return;
+  try{
+    const r=await fetch(location.pathname+'?check='+Date.now(),{cache:'no-store'}); const t=await r.text();
+    const m=t.match(/name="app-build" content="(\d+)"/); const nb=m?+m[1]:0;
+    if(nb>BUILD){
+      let tries=0; try{tries=+sessionStorage.getItem('aaUpd'+nb)||0;}catch(e){}
+      if(tries>=2)return; // never loop
+      const go=()=>{try{sessionStorage.setItem('aaUpd'+nb,tries+1);}catch(e){} location.replace(freshUrl(nb));};
+      if(auto&&!G)go(); else {const u=$('updBar');u.classList.remove('hidden');u.onclick=go;}
+    }
+  }catch(e){}
+}
+addEventListener('pageshow',e=>{if(e.persisted)checkUpdate(false);});
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible')checkUpdate(false);});
+setTimeout(()=>checkUpdate(true),400);
+window.ArrowMaze.build=BUILD; window.ArrowMaze.version=VERSION;
 showMenu();
 })();
 </script>
