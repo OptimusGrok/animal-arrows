@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="theme-color" content="#8fe3c8">
 <meta http-equiv="Cache-Control" content="no-cache">
-<meta name="app-build" content="21">
+<meta name="app-build" content="30">
 <title>Animal Arrows · Arrow Maze Puzzle</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 32 32%22%3E%3Crect width=%2232%22 height=%2232%22 rx=%228%22 fill=%22%23ff6c9d%22/%3E%3Cpath d=%22M7 16h14M15 9l7 7-7 7%22 stroke=%22%23fff%22 stroke-width=%224%22 fill=%22none%22 stroke-linecap=%22round%22 stroke-linejoin=%22round%22/%3E%3C/svg%3E">
 <style>
@@ -55,6 +55,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
 .lv.locked{opacity:.6}
 .lv.locked .lock{position:absolute;top:34px;width:30px;height:30px}
 .lv.cur{outline:3px solid #ff8fb6;outline-offset:-3px}
+.sec{margin:18px 4px 10px;font-size:18px;font-weight:900;display:flex;align-items:baseline;gap:8px;flex-wrap:wrap}
+.sec:first-of-type{margin-top:4px}
+.sec.hard{color:#d94a7f}.sec small{font-size:12px;font-weight:700;opacity:.65;color:var(--ink)}
+.lv.hardc{background:linear-gradient(#fff,#ffe7f0)}
+.lv.hardc .nm{font-size:13px;text-align:center;line-height:1.1}
+.lv .sub{font-size:10px;font-weight:700;opacity:.55;text-align:center;line-height:1.1;padding:0 2px}
 .mbtns{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap}
 .howto{background:var(--card);border-radius:18px;padding:12px 16px;margin-top:16px;font-size:14px;font-weight:600;line-height:1.45}
 .howto b{color:#ff6c9d}
@@ -119,8 +125,12 @@ button{font:inherit;color:inherit;border:0;cursor:pointer;-webkit-tap-highlight-
       <p>Slide the arrows out to free the hidden animals!</p>
     </header>
     <div class="mstats" id="mstats"></div>
+    <h2 class="sec">Normal</h2>
     <div class="lvgrid" id="grid"></div>
+    <h2 class="sec hard">Hard mode <small>bigger mazes · several animals per board</small></h2>
+    <div class="lvgrid" id="hgrid"></div>
     <div class="mbtns">
+      <button class="btn pri" id="hEndlessBtn"><svg viewBox="0 0 24 24"><path d="M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z" fill="#fff"/></svg>Hard endless</button>
       <button class="btn blue" id="endlessBtn"><svg viewBox="0 0 24 24"><path d="M7 8c-2.3 0-4 1.8-4 4s1.7 4 4 4c3.5 0 6.5-8 10-8 2.3 0 4 1.8 4 4s-1.7 4-4 4c-3.5 0-6.5-8-10-8z" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round"/></svg>Endless mode</button>
       <button class="btn" id="muteBtn2"></button>
     </div>
@@ -352,6 +362,44 @@ const ANIMALS=[
 const ORDER=['Chick','Fish','Frog','Bluebird','Piggy','Snail','Turtle','Cat','Bunny','Puppy','Whale','Giraffe','Butterfly','Owl','Elephant'];
 ANIMALS.sort((a,b)=>ORDER.indexOf(a.name)-ORDER.indexOf(b.name));
 const MAXLEN=[3,3,4,4,4,5,5,5,6,6,6,7,7,7,8];
+const HARD=[
+ {name:"Pond friends",bg:'#d6f2ff',maxL:8,parts:[['Frog', 0, 3], ['Fish', 11, 0], ['Turtle', 9, 7, 1]]},
+ {name:"Farmyard",bg:'#fff0d6',maxL:8,parts:[['Piggy', 0, 2], ['Chick', 11, 4], ['Bunny', 17, 0, 1]]},
+ {name:"Pet shop",bg:'#ffe8ef',maxL:9,parts:[['Cat', 0, 1], ['Puppy', 12, 0], ['Bunny', 6, 11]]},
+ {name:"Sky high",bg:'#e2eeff',maxL:9,parts:[['Bluebird', 0, 0], ['Butterfly', 12, 4], ['Owl', 2, 10]]},
+ {name:"Garden party",bg:'#f3ffe0',maxL:10,parts:[['Snail', 0, 0], ['Butterfly', 14, 0], ['Bunny', 19, 10, 1], ['Chick', 10, 9]]},
+ {name:"Ocean deep",bg:'#cfe6ff',maxL:10,parts:[['Whale', 0, 0], ['Fish', 19, 1, 1], ['Fish', 4, 11], ['Turtle', 17, 8]]},
+ {name:"Safari trio",bg:'#fff1cf',maxL:11,parts:[['Elephant', 0, 5], ['Giraffe', 17, 0, 1], ['Bluebird', 23, 0]]},
+ {name:"Night forest",bg:'#e9e1ff',maxL:11,parts:[['Owl', 0, 0], ['Cat', 13, 3], ['Bunny', 25, 1, 1], ['Frog', 8, 14]]},
+ {name:"Big parade",bg:'#ffe9d9',maxL:12,parts:[['Elephant', 0, 0], ['Puppy', 18, 1], ['Whale', 6, 13, 1]]},
+ {name:"Animal kingdom",bg:'#eef7d8',maxL:12,parts:[['Elephant', 0, 5], ['Giraffe', 18, 0], ['Whale', 0, 18], ['Owl', 19, 18]]}
+];
+// Hard mode boards: several animal silhouettes composed onto one board. Parts touch, so arrows can cross between animals.
+function artGrid(name,flip){const A=ANIMALS.find(a=>a.name===name);const W=Math.max(...A.art.map(r=>r.length));
+  let g=A.art.map(r=>r.padEnd(W,'.'));if(flip)g=g.map(r=>[...r].reverse().join(''));return g;}
+function composeArt(parts){ // parts: [name,x,y,flip]
+  let W=0,H=0;const P=parts.map(([n,x,y,f])=>{const g=artGrid(n,f);W=Math.max(W,x+g[0].length);H=Math.max(H,y+g.length);return{g,x,y};});
+  const out=Array.from({length:H},()=>Array(W).fill('.'));
+  for(const p of P)p.g.forEach((r,yy)=>{for(let xx=0;xx<r.length;xx++)if(r[xx]!=='.')out[p.y+yy][p.x+xx]=r[xx];});
+  return out.map(r=>r.join(''));
+}
+function randomParts(seed){ // Hard endless: 2-4 random animals packed so they touch, never overlap
+  const rng=mulberry32(seed^0x5bd1e995); const k=2+Math.floor(rng()*3);
+  const names=[];const pool=ANIMALS.map(a=>a.name);while(names.length<k)names.push(pool[Math.floor(rng()*pool.length)]);
+  const occ=new Set();const parts=[];let minX=0,minY=0,maxX=0,maxY=0;
+  const cellsOf=(g,x,y)=>{const c=[];g.forEach((r,yy)=>{for(let xx=0;xx<r.length;xx++)if(r[xx]!=='.')c.push((x+xx)+','+(y+yy));});return c;};
+  names.forEach((n,i)=>{const f=rng()<0.5;const g=artGrid(n,f);const w=g[0].length,h=g.length;
+    if(!i){parts.push([n,0,0,f]);cellsOf(g,0,0).forEach(c=>occ.add(c));maxX=w;maxY=h;return;}
+    let best=null,bs=1e9;
+    for(let t=0;t<260;t++){const x=Math.floor(minX-w+rng()*(maxX-minX+w+1)),y=Math.floor(minY-h+rng()*(maxY-minY+h+1));
+      const c=cellsOf(g,x,y);if(c.some(q=>occ.has(q)))continue;
+      const touch=c.some(q=>{const[a,b]=q.split(',').map(Number);return occ.has((a+1)+','+b)||occ.has((a-1)+','+b)||occ.has(a+','+(b+1))||occ.has(a+','+(b-1));});
+      if(!touch)continue;const bw=Math.max(maxX,x+w)-Math.min(minX,x),bh=Math.max(maxY,y+h)-Math.min(minY,y);
+      const sc=bw*bh+Math.abs(bw-bh*1.1)*6+rng()*20;if(sc<bs){bs=sc;best=[x,y,c];}}
+    if(!best)return; parts.push([n,best[0],best[1],f]);best[2].forEach(c=>occ.add(c));
+    minX=Math.min(minX,best[0]);minY=Math.min(minY,best[1]);maxX=Math.max(maxX,best[0]+w);maxY=Math.max(maxY,best[1]+h);});
+  return parts.map(([n,x,y,f])=>[n,x-minX,y-minY,f]);
+}
 const ARROW_COLS=['#ff6b8b','#ff9f43','#ffcf3d','#5fd18b','#3fc3e8','#6f8cff','#b07cf0','#ff7fd1','#2fbfa8','#ff7a59'];
 
 function parseArt(art){
@@ -369,7 +417,7 @@ const DIRS=[[0,-1],[1,0],[0,1],[-1,0]]; // up right down left
    grow a snake body backwards from it through remaining cells, and remove it.
    The pick order IS a valid removal order, so every level is solvable by construction.
    (Removing an arrow never blocks another, so greedy "tap any free arrow" always finishes.) */
-function peel(mask,rng,minL,maxL){
+function peel(mask,rng,minL,maxL,hard){
   const {W,H,cells}=mask; const rem=new Uint8Array(W*H); let count=cells.length;
   for(const [x,y] of cells) rem[y*W+x]=1;
   const inb=(x,y)=>x>=0&&y>=0&&x<W&&y<H;
@@ -393,7 +441,14 @@ function peel(mask,rng,minL,maxL){
         for(let k=0;k<4;k++){const nx=cx+DIRS[k][0],ny=cy+DIRS[k][1];
           if(inb(nx,ny)&&rem[ny*W+nx]&&!inPath.has(ny*W+nx))opts.push(k);}
         if(!opts.length)break;
-        let k=(opts.includes(wd)&&rng()<0.45)?wd:opts[Math.floor(rng()*opts.length)];
+        let k;
+        if(hard&&rng()<0.75){ // Warnsdorff-style: hug the edge of what's left so we don't strand single cells
+          let bd=9;const cand2=[];
+          for(const o of opts){const nx=cx+DIRS[o][0],ny=cy+DIRS[o][1];let deg=0;
+            for(let q=0;q<4;q++){const mx=nx+DIRS[q][0],my=ny+DIRS[q][1];if(inb(mx,my)&&rem[my*W+mx]&&!inPath.has(my*W+mx))deg++;}
+            if(deg<bd){bd=deg;cand2.length=0;} if(deg===bd)cand2.push(o);}
+          k=cand2.includes(wd)&&rng()<0.4?wd:cand2[Math.floor(rng()*cand2.length)];
+        } else k=(opts.includes(wd)&&rng()<0.45)?wd:opts[Math.floor(rng()*opts.length)];
         cx+=DIRS[k][0];cy+=DIRS[k][1];wd=k;path.push([cx,cy]);inPath.add(cy*W+cx);
       }
     }
@@ -422,15 +477,16 @@ function blockerOf(a,occ,W,H,id){
   while(x>=0&&y>=0&&x<W&&y<H){const o=occ[y*W+x];if(o>=0&&o!==id)return{id:o,k};x+=dx;y+=dy;k++;}
   return null;
 }
-function buildLevel(animalIdx,seed,maxL,tries){
-  const A=ANIMALS[animalIdx]; const mask=parseArt(A.art);
+function buildLevel(animalIdx,seed,maxL,tries){const A=ANIMALS[animalIdx];return buildFromMask(A,parseArt(A.art),seed,maxL,tries,2);}
+function buildFromMask(A,mask,seed,maxL,tries,minL){
   let best=null,bestScore=-1e9;
   for(let t=0;t<tries;t++){
     const rng=mulberry32(seed*7919+t*104729+13);
-    const arrows=peel(mask,rng,2,maxL);
+    const hard=minL>2;
+    const arrows=peel(mask,rng,minL,maxL,hard);
     const an=analyse(mask,arrows); if(!an.ok) continue;
     const singles=arrows.filter(a=>a.cells.length===1).length;
-    const score=an.layers*4-singles*2-an.firstFree*0.6;
+    const score=hard?an.layers*3-singles*4-an.firstFree*0.4-arrows.length*1.5:an.layers*4-singles*2-an.firstFree*0.6;
     if(score>bestScore){bestScore=score;best=arrows;}
   }
   // colour: avoid same colour as touching neighbours
@@ -446,8 +502,9 @@ function buildLevel(animalIdx,seed,maxL,tries){
 
 /* ---------------- storage ---------------- */
 const KEY='animalArrows.v1';
-let save={unlocked:1,stars:{},muted:false,endless:0};
+let save={unlocked:1,stars:{},muted:false,endless:0,hunlocked:1,hstars:{},hendless:0};
 try{Object.assign(save,JSON.parse(localStorage.getItem(KEY)||'{}'));}catch(e){}
+save.hstars=save.hstars||{};save.hunlocked=save.hunlocked||1;save.hendless=save.hendless||0;
 const persist=()=>{try{localStorage.setItem(KEY,JSON.stringify(save));}catch(e){}};
 
 /* ---------------- audio (WebAudio synth) ---------------- */
@@ -538,31 +595,56 @@ function renderMenu(){
     b.onclick=()=>{initAudio();if(locked){SFX.bump();b.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'none'}],{duration:220});return;}SFX.click();startLevel(i);};
     grid.appendChild(b);
   });
-  $('mstats').innerHTML=`<div class="pill">${SVG.star(true)} ${totalStars()} / ${ANIMALS.length*3}</div><div class="pill">Freed ${Object.keys(save.stars).length} / ${ANIMALS.length}</div><div class="pill">Endless wins ${save.endless||0}</div>`;
+  const hg=$('hgrid');hg.innerHTML='';
+  HARD.forEach((Hd,i)=>{
+    const mask=parseArt(composeArt(Hd.parts)); const st=save.hstars[i]||0; const locked=i>=save.hunlocked;
+    const b=document.createElement('button');b.className='lv hardc'+(locked?' locked':'')+(i===save.hunlocked-1&&!st?' cur':'');
+    b.dataset.hard=i;
+    b.innerHTML=`<span class="num">H${i+1}</span><canvas></canvas><div class="nm">${locked?'???':Hd.name}</div><div class="sub">${locked?'':Hd.parts.length+' animals · '+mask.cells.length+' cells'}</div><div class="st">${[0,1,2].map(k=>SVG.star(k<st)).join('')}</div>${locked?SVG.lock:''}`;
+    thumb(b.querySelector('canvas'),mask,locked?'locked':(st?'full':'ghost'));
+    b.onclick=()=>{initAudio();if(locked){SFX.bump();b.animate([{transform:'translateX(-5px)'},{transform:'translateX(5px)'},{transform:'none'}],{duration:220});return;}SFX.click();startLevel(i,undefined,true);};
+    hg.appendChild(b);
+  });
+  $('mstats').innerHTML=`<div class="pill">${SVG.star(true)} ${totalStars()} / ${ANIMALS.length*3}</div><div class="pill">Freed ${Object.keys(save.stars).length} / ${ANIMALS.length}</div><div class="pill">Endless wins ${save.endless||0}</div><div class="pill" style="color:#d94a7f">Hard ${SVG.star(true)} ${Object.values(save.hstars).reduce((a,b)=>a+b,0)} / ${HARD.length*3}</div>`;
   const logo=$('logo'); if(!logo.childElementCount){[0,7,14].forEach(i=>{const c=document.createElement('canvas');c.style.width='78px';c.style.height='64px';thumb(c,parseArt(ANIMALS[i].art),'full');logo.appendChild(c);});}
   renderMuteBtns();
 }
 function showMenu(){G=null;$('overlay').classList.add('hidden');$('game').classList.add('hidden');$('menu').classList.remove('hidden');renderMenu();}
 
 /* ---------------- game ---------------- */
-function startLevel(i,endlessSeed){
+function hardLevelData(i,endlessSeed){
   const endless=endlessSeed!==undefined;
+  const parts=endless?randomParts(endlessSeed):HARD[i].parts;
+  const names=parts.map(p=>p[0]); const uniq=[...new Set(names)];
+  const nameList=uniq.length===1?uniq[0]:uniq.slice(0,-1).join(', ')+' & '+uniq[uniq.length-1];
+  const A={name:endless?'Hard mix':HARD[i].name,bg:endless?ANIMALS.find(a=>a.name===names[0]).bg:HARD[i].bg,members:names,freed:nameList};
+  const maxL=endless?9+Math.floor(mulberry32(endlessSeed+5)()*4):HARD[i].maxL;
+  const seed=endless?endlessSeed:(i+1)*7331+17;
+  return buildFromMask(A,parseArt(composeArt(parts)),seed,maxL,endless?8:14,Math.max(5,maxL-4));
+}
+function startLevel(i,endlessSeed,hard){
+  hard=!!hard; const endless=endlessSeed!==undefined;
   const ai=endless?Math.floor(mulberry32(endlessSeed)()*ANIMALS.length):i;
   const seed=endless?endlessSeed:(i+1)*1337;
   const maxL=endless?4+Math.floor(mulberry32(endlessSeed+5)()*5):MAXLEN[i];
-  const L=buildLevel(ai,seed,maxL,endless?8:12);
+  const tb=performance.now();
+  const L=hard?hardLevelData(i,endlessSeed):buildLevel(ai,seed,maxL,endless?8:12);
+  const buildMs=performance.now()-tb;
   const {W,H}=L.mask; const occ=new Int16Array(W*H).fill(-1);
   const arrows=L.arrows.map((a,id)=>{a.cells.forEach(([x,y])=>occ[y*W+x]=id);return{id,cells:a.cells,dir:a.dir,color:a.color,removed:false,anim:null,shakeT:-9,flashT:-9};});
-  G={level:i,endless,seed,animal:L.animal,mask:L.mask,W,H,occ,arrows,hearts:3,stack:[],done:false,failed:false,hint:-1,hintT:0,
+  G={level:i,endless,hard,buildMs,seed,animal:L.animal,mask:L.mask,W,H,occ,arrows,hearts:3,stack:[],done:false,failed:false,hint:-1,hintT:0,
      particles:[],revealT:-1,t0:performance.now(),moves:0,bumps:0,introT:performance.now()};
   $('menu').classList.add('hidden');$('overlay').classList.add('hidden');$('game').classList.remove('hidden');
-  $('lvLabel').textContent=endless?`Endless · #${(save.endless||0)+1}`:`Level ${i+1} / ${ANIMALS.length}`;
+  $('lvLabel').textContent=hard?(endless?`Hard endless · #${(save.hendless||0)+1}`:`Hard ${i+1} / ${HARD.length}`):(endless?`Endless · #${(save.endless||0)+1}`:`Level ${i+1} / ${ANIMALS.length}`);
+  $('game').classList.toggle('hardmode',hard);
   $('animalName').textContent=L.animal.name;
   stage.style.background='';
   document.body.style.setProperty('--bgc',L.animal.bg);
   resetView();resize();updateHud();
   if(!save.zoomTip&&L.mask.cells.length>=60){save.zoomTip=1;persist();setTimeout(()=>toast('Tip: pinch or tap + to zoom'),900);}
 }
+function replayCurrent(){if(!G)return;G.endless?startLevel(0,G.seed,G.hard):startLevel(G.level,undefined,G.hard);}
+function newEndless(hard){startLevel(0,(Math.random()*1e9)|0,hard);}
 function updateHud(){
   if(!G)return;
   $('hearts').innerHTML=[0,1,2].map(k=>SVG.heart(k<G.hearts)).join('');
@@ -624,21 +706,30 @@ function win(){
   if(!G)return;
   G.revealT=performance.now(); SFX.win(); zoomAnim(1);
   const stars=G.hearts;
-  if(G.endless){save.endless=(save.endless||0)+1;}
+  if(G.hard){ if(G.endless)save.hendless=(save.hendless||0)+1;
+    else{save.hstars[G.level]=Math.max(save.hstars[G.level]||0,stars);save.hunlocked=Math.max(save.hunlocked,Math.min(HARD.length,G.level+2));} }
+  else if(G.endless){save.endless=(save.endless||0)+1;}
   else{save.stars[G.level]=Math.max(save.stars[G.level]||0,stars);save.unlocked=Math.max(save.unlocked,Math.min(ANIMALS.length,G.level+2));}
   persist();
   for(let i=0;i<70;i++)confetti();
   setTimeout(()=>{if(!G||!G.done)return;
+    if(G.hard){
+      const last=!G.endless&&G.level===HARD.length-1;
+      showOverlay(`You freed the ${G.animal.freed}!`,G.endless?`Hard endless cleared · ${G.arrows.length} arrows`:(last?'Every hard board cleared — Arrow Legend!':`${G.animal.name} complete · ${G.moves} taps`),stars,
+        [G.endless||last?['Hard endless','pri',()=>newEndless(true)]:['Next','pri',()=>startLevel(G.level+1,undefined,true)],
+         ['Replay','',replayCurrent],['Levels','',showMenu]]);
+      return;
+    }
     const last=!G.endless&&G.level===ANIMALS.length-1;
     showOverlay(`You freed the ${G.animal.name}!`,G.endless?'Endless puzzle cleared':(last?'Every animal is free — you are an Arrow Master!':`Level ${G.level+1} complete · ${G.moves} taps`),stars,
-      [G.endless?['Next puzzle','pri',()=>startLevel(0,(Math.random()*1e9)|0)]:(last?['Endless','blue',()=>startLevel(0,(Math.random()*1e9)|0)]:['Next','pri',()=>startLevel(G.level+1)]),
-       ['Replay','',()=>G.endless?startLevel(0,G.seed):startLevel(G.level)],['Levels','',showMenu]]);
+      [G.endless?['Next puzzle','pri',()=>newEndless(false)]:(last?['Endless','blue',()=>newEndless(false)]:['Next','pri',()=>startLevel(G.level+1)]),
+       ['Replay','',replayCurrent],['Levels','',showMenu]]);
   },900/(FAST>1?FAST:1));
   updateHud();
 }
 function showFail(){
   SFX.fail();
-  showOverlay('Out of hearts!','The arrows got tangled. Try again?',-1,[['Retry','pri',()=>G.endless?startLevel(0,G.seed):startLevel(G.level)],['Levels','',showMenu]]);
+  showOverlay('Out of hearts!','The arrows got tangled. Try again?',-1,[['Retry','pri',replayCurrent],['Levels','',showMenu]]);
 }
 function showOverlay(title,sub,stars,btns){
   $('ovTitle').textContent=title;$('ovSub').textContent=sub;
@@ -651,7 +742,7 @@ function showOverlay(title,sub,stars,btns){
 /* ---------------- layout, zoom & input ---------------- */
 let VW=0,VH=0,DPR=1,CS=20,OX=0,OY=0,BASECS=20; const PAD=0.5;
 // view: zoom factor z (1 = whole board fits) and the board point (cx,cy, in cell units incl. padding) at the stage centre
-const ZMIN=1,ZMAX=4,ZSTEP=1.5;
+const ZMIN=1,ZSTEP=1.5; let ZMAX=4; // max zoom grows on big boards so cells can reach ~64px
 const V={z:1,cx:0,cy:0,anim:null};
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 function resetView(){V.z=1;V.anim=null;if(G){V.cx=(G.W+PAD*2)/2;V.cy=(G.H+PAD*2)/2;}}
@@ -691,10 +782,10 @@ function updateZoomUi(shown){
 }
 function resize(){
   DPR=Math.min(3,window.devicePixelRatio||1); VW=stage.clientWidth; VH=stage.clientHeight;
-  cv.width=Math.round(VW*DPR); cv.height=Math.round(VH*DPR);
+  cv.width=Math.round(VW*DPR); cv.height=Math.round(VH*DPR); forceDraw=true;
   if(!G)return;
   const bw=G.W+PAD*2,bh=G.H+PAD*2;
-  BASECS=Math.min(VW/bw,VH/bh,68);
+  BASECS=Math.min(VW/bw,VH/bh,68); ZMAX=Math.max(4,Math.min(8,64/BASECS));
   if(!V.cx){V.cx=bw/2;V.cy=bh/2;}
   applyView();
 }
@@ -761,9 +852,10 @@ $('zoomFit').onclick=()=>{initAudio();SFX.click();zoomAnim(1);};
 $('backBtn').onclick=()=>{initAudio();SFX.click();showMenu();};
 $('hintBtn').onclick=()=>{initAudio();if(hint()<0)SFX.click();};
 $('undoBtn').onclick=()=>{initAudio();undo();};
-$('restartBtn').onclick=()=>{initAudio();SFX.click();if(G)G.endless?startLevel(0,G.seed):startLevel(G.level);};
+$('restartBtn').onclick=()=>{initAudio();SFX.click();replayCurrent();};
 $('muteBtn').onclick=$('muteBtn2').onclick=()=>{initAudio();setMuted(!save.muted);SFX.click();};
-$('endlessBtn').onclick=()=>{initAudio();SFX.click();startLevel(0,(Math.random()*1e9)|0);};
+$('endlessBtn').onclick=()=>{initAudio();SFX.click();newEndless(false);};
+$('hEndlessBtn').onclick=()=>{initAudio();SFX.click();newEndless(true);};
 document.addEventListener('keydown',e=>{if(!G)return;if(e.key==='h')hint();if(e.key==='z'||e.key==='u')undo();if(e.key==='r')$('restartBtn').click();if(e.key==='Escape')showMenu();if(e.key==='+'||e.key==='=')stepZoom(1);if(e.key==='-'||e.key==='_')stepZoom(-1);if(e.key==='0')zoomAnim(1);});
 
 /* ---------------- particles ---------------- */
@@ -809,10 +901,20 @@ function drawArrow(a,s,alpha,now){
   ctx.strokeStyle='rgba(255,255,255,.38)';ctx.lineWidth=w*0.28;ctx.save();ctx.translate(-CS*0.04,-CS*0.05);trace();ctx.stroke();ctx.restore();
   ctx.restore();
 }
+let drawT=[];
 function frame(now){
   requestAnimationFrame(frame);
   if(!G||$('game').classList.contains('hidden'))return;
   tickView(now);
+  // Only repaint when something changes: big hard boards stay cheap when idle (saves battery too)
+  const sig=G.seed+'|'+G.level+'|'+OX.toFixed(2)+'|'+OY.toFixed(2)+'|'+CS.toFixed(3)+'|'+VW+'|'+VH+'|'+DPR+'|'+G.hint;
+  const active=(now-G.introT)/1000*(FAST>1?20:1)<1.3||G.revealT>0||G.particles.length||G.hint>=0||G.arrows.some(a=>a.anim||now-a.shakeT<340||now-a.flashT<400);
+  if(!active&&sig===lastSig&&!forceDraw){idleFrames++;return;}
+  lastSig=sig;forceDraw=false;drawCount++;
+  const _t0=performance.now(); drawFrame(now); drawT.push(performance.now()-_t0); if(drawT.length>60)drawT.shift();
+}
+let lastSig='',forceDraw=true,drawCount=0,idleFrames=0;
+function drawFrame(now){
   ctx.setTransform(DPR,0,0,DPR,0,0);ctx.clearRect(0,0,VW,VH);
   const bw=(G.W+PAD*2)*CS,bh=(G.H+PAD*2)*CS;
   // board
@@ -846,7 +948,7 @@ function frame(now){
     } else if(a.removed) continue;
     if(a.removed&&!an)continue;
     // intro pop
-    if(intro<1.2){const [hx,hy]=a.cells[0];const d=(hx+hy)*0.035;const k=easeOutBack((intro-d)/0.35);if(k<=0)continue;ctx.save();const c=cellCenter(G.W/2-0.5,G.H/2-0.5);ctx.translate(c[0],c[1]);ctx.scale(k,k);ctx.translate(-c[0],-c[1]);drawArrow(a,s,alpha,now);ctx.restore();}
+    if(intro<1.2){const [hx,hy]=a.cells[0];const d=(hx+hy)/(G.W+G.H)*0.75;const k=easeOutBack((intro-d)/0.35);if(k<=0)continue;ctx.save();const c=cellCenter(G.W/2-0.5,G.H/2-0.5);ctx.translate(c[0],c[1]);ctx.scale(k,k);ctx.translate(-c[0],-c[1]);drawArrow(a,s,alpha,now);ctx.restore();}
     else drawArrow(a,s,alpha,now);
   }
   // reveal art
@@ -881,8 +983,10 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 window.ArrowMaze={
   levels:ANIMALS.map((a,i)=>({name:a.name,size:parseArt(a.art).W+'x'+parseArt(a.art).H,cells:parseArt(a.art).cells.length,maxLen:MAXLEN[i]})),
   start:(i)=>startLevel(i), startEndless:(seed)=>startLevel(0,seed), menu:showMenu,
+  hardLevels:HARD.map((h,i)=>{const m=parseArt(composeArt(h.parts));return{name:h.name,animals:h.parts.map(p=>p[0]),size:m.W+'x'+m.H,cells:m.cells.length,maxLen:h.maxL};}),
+  startHard:(i)=>startLevel(i,undefined,true), startHardEndless:(seed)=>startLevel(0,seed,true), unlockAllHard:()=>{save.hunlocked=HARD.length;persist();},
   setFast:(f)=>{FAST=f||1;}, unlockAll:()=>{save.unlocked=ANIMALS.length;persist();},
-  state:()=>G&&({level:G.level,endless:G.endless,animal:G.animal.name,hearts:G.hearts,done:G.done,failed:G.failed,total:G.arrows.length,
+  state:()=>G&&({level:G.level,endless:G.endless,hard:G.hard,buildMs:G.buildMs,cells:G.mask.cells.length,size:G.W+'x'+G.H,members:G.animal.members||[G.animal.name],animal:G.animal.name,hearts:G.hearts,done:G.done,failed:G.failed,total:G.arrows.length,
     left:G.arrows.filter(a=>!a.removed).length,busy:G.arrows.some(a=>a.anim),moves:G.moves,
     coverage:(()=>{const s=new Set();G.arrows.forEach(a=>a.cells.forEach(([x,y])=>s.add(x+','+y)));return s.size===G.mask.cells.length&&G.arrows.reduce((n,a)=>n+a.cells.length,0)===G.mask.cells.length;})(),
     lengths:G.arrows.map(a=>a.cells.length)}),
@@ -892,6 +996,8 @@ window.ArrowMaze={
   zoomTo:(z)=>{V.anim=null;zoomAt(z,VW/2,VH/2);},
   cellAt:(clientX,clientY)=>{const r=cv.getBoundingClientRect();return[(clientX-r.left-OX)/CS-PAD-0.5,(clientY-r.top-OY)/CS-PAD-0.5];},
   visible:(id)=>{const a=G.arrows[id];const[x,y]=a.cells[a.cells.length-1];const c=cellCenter(x,y);const m=CS*0.5;return c[0]>m&&c[1]>m&&c[0]<VW-m&&c[1]<VH-m;},
+  drawStats:()=>({draws:drawCount,idle:idleFrames}),
+  drawCost:()=>{const t=drawT.slice().sort((a,b)=>a-b);return t.length?+t[t.length>>1].toFixed(2):0;},
   tap:(id)=>tapArrow(id), hint:()=>hint(), undo:()=>undo(),
   screenPos:(id)=>{const a=G.arrows[id];const[x,y]=a.cells[a.cells.length-1];const r=cv.getBoundingClientRect();const c=cellCenter(x,y);return{x:r.left+c[0],y:r.top+c[1]};},
   async solve(delay=60){ // greedy auto-play: tap any free arrow until clear
@@ -900,7 +1006,7 @@ window.ArrowMaze={
 };
 /* ---------------- version & update check ---------------- */
 // GitHub Pages serves with max-age=600 and phones often keep an old tab alive, so check for a newer build.
-const BUILD=21, VERSION='v2.1 zoom';
+const BUILD=30, VERSION='v3 hard mode';
 $('verTag').textContent='Animal Arrows '+VERSION; $('gver').textContent=VERSION;
 function freshUrl(b){return location.pathname+'?v='+b+location.hash;}
 async function checkUpdate(auto){
